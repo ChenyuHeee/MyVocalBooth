@@ -239,10 +239,11 @@ class App {
 
     // Ruler seek (click anywhere on ruler)
     document.getElementById('time-ruler').addEventListener('click', (e) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const scrollLeft = document.getElementById('lanes-scroll').scrollLeft;
-      const x = Math.max(0, e.clientX - rect.left + scrollLeft - HEADER_WIDTH);
-      const secs = x / PX_PER_SEC;
+      const container = document.getElementById('lanes-scroll');
+      const containerRect = container.getBoundingClientRect();
+      const contentX = e.clientX - containerRect.left + container.scrollLeft;
+      const timeX = contentX - HEADER_WIDTH;
+      const secs = Math.max(0, timeX / PX_PER_SEC);
       this.player.seek(secs);
       this._movePlayhead(secs);
     });
