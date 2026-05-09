@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyVocalBooth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+  <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- Transport -->
+    <header class="transport">
+      <div class="tx-left">
+        <span class="logo">MyVocalBooth</span>
+      </div>
+      <div class="tx-center">
+        <button id="btn-start" class="btn-rec" title="Record">
+          <span class="btn-rec-dot"></span>REC
+        </button>
+        <button id="btn-stop" class="btn-tx btn-stop-rec" disabled title="Stop recording">
+          <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
+        </button>
+        <span id="rec-indicator" class="rec-indicator hidden">
+          <span class="rec-dot"></span>
+          <span id="rec-timer" class="rec-timer">00:00</span>
+        </span>
+        <span class="tx-sep"></span>
+        <button id="btn-play" class="btn-tx btn-play-tx" title="Play">&#9654;</button>
+        <button id="btn-pause" class="btn-tx btn-pause-tx" title="Pause">&#9646;&#9646;</button>
+        <button id="btn-stop-tx" class="btn-tx btn-stop-tx" title="Stop">&#9632;</button>
+        <span class="tx-sep"></span>
+        <button id="btn-split" class="btn-tx btn-tool" title="Split selected clip at playhead" disabled>&#9776; Split</button>
+        <button id="btn-merge" class="btn-tx btn-tool" title="Merge selected clip with next" disabled>&#8594;&#8592; Merge</button>
+        <span class="tx-sep"></span>
+        <button id="btn-undo" class="btn-tx btn-tool" title="Undo (⌘Z)" disabled>&#8617; Undo</button>
+        <button id="btn-redo" class="btn-tx btn-tool" title="Redo (⌘⇧Z)" disabled>&#8618; Redo</button>
+      </div>
+      <div class="tx-right"></div>
+    </header>
+
+    <!-- Workspace -->
+    <div class="workspace">
+      <!-- Top: full-width timeline -->
+      <div class="tl-wrapper">
+        <div class="timeline">
+          <div class="tl-toolbar">
+            <span class="tl-label">TIMELINE</span>
+            <span class="tl-hint">Click clip to select &middot; Shift+Click to split &middot; Select region in inspector to tune pitch</span>
+          </div>
+          <div class="tl-scroll-outer" id="lanes-scroll">
+            <div id="time-ruler" class="time-ruler"></div>
+            <div id="timeline-tracks" class="tl-tracks"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: assets (left) + inspector (right) -->
+      <div class="bottom-panel">
+        <aside class="media-bin">
+          <div class="bin-header">
+            <span class="bin-title">Assets</span>
+            <div class="bin-actions">
+              <span id="asset-count" class="bin-count">0</span>
+              <input type="file" id="file-upload" class="file-input-hidden" accept="audio/*">
+              <button id="btn-upload" class="btn-util btn-import" title="Import audio">+</button>
+            </div>
+          </div>
+          <ul id="asset-list" class="asset-list">
+            <li class="asset-empty">No assets yet</li>
+          </ul>
+        </aside>
+        <div id="inspector" class="inspector">
+          <div class="insp-empty">Select a clip to edit</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer-bar">
+      <div class="footer-left">
+        <label class="footer-label">ACCOMPANIMENT</label>
+        <div class="footer-row">
+          <input type="text" id="ai-prompt" class="input" placeholder="Prompt: key, style, tempo...">
+          <button id="btn-generate" class="btn btn-sec">Generate</button>
+        </div>
+      </div>
+      <div class="footer-right">
+        <button id="btn-export" class="btn btn-export">Export WAV</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="js/recorder.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
