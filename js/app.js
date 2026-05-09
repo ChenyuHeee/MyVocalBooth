@@ -59,6 +59,7 @@ class App {
     document.getElementById('btn-merge').addEventListener('click', () => this._mergeSelected());
     document.getElementById('btn-undo').addEventListener('click', () => this._undo());
     document.getElementById('btn-redo').addEventListener('click', () => this._redo());
+    document.getElementById('btn-export').addEventListener('click', () => this._exportWav());
 
     // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
@@ -331,6 +332,152 @@ class App {
 
   _pause() { this.player.pause(); this._renderAll(); }
   _stopTransport() { this.player.stop(); this._movePlayhead(0); this._renderAll(); }
+
+  /* ---- Export ---- */
+
+  async _exportWav() {
+    const exportBtn = document.getElementById('btn-export');
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Rendering...';
+
+    try {
+      const sampleRate = 44100;
+      const anySolo = this._tracks.some((t) => t.solo);
+
+      // Calculate total duration
+      let totalDur = 0;
+      for (const track of this._tracks) {
+        if (anySolo ? !track.solo : track.mute) continue;
+        for (const clip of track.clips) {
+          const d = this._clipSourceDuration(clip);
+          totalDur = Math.max(totalDur, clip.startTime + d);
+        }
+      }
+      totalDur = Math.max(totalDur, 1);
+
+      const offlineCtx = new OfflineAudioContext(1, Math.ceil(sampleRate * totalDur), sampleRate);
+
+      for (const track of this._tracks) {
+        if (anySolo ? !track.solo : track.mute) continue;
+
+        const trackGain = offlineCtx.createGain();
+        trackGain.gain.value = track.volume;
+        trackGain.connect(offlineCtx.destination);
+
+        for (const clip of track.clips) {
+          const blob = this._getAssetBlob(clip.assetId);
+          if (!blob) continue;
+
+          let audioBuffer;
+          try {
+            const arrayBuffer = await blob.arrayBuffer();
+            audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+          } catch (err) {
+            console.warn('Export: failed to decode clip', clip.assetId, err);
+            continue;
+          }
+
+          const srcStart = clip.sourceStart || 0;
+          const srcDur = clip.sourceDuration > 0 ? clip.sourceDuration : audioBuffer.duration;
+          const basePitch = track.pitchShift || 0;
+          const regions = (clip.pitchRegions || []).filter(r => r.shift).sort((a, b) => a.start - b.start);
+
+          // Split clip source into segments at region boundaries
+          const segments = [];
+          let cursor = 0;
+          for (const r of regions) {
+            if (r.start > cursor + 0.01) {
+              segments.push({ start: cursor, end: r.start, shift: 0 });
+            }
+            segments.push({ start: r.start, end: r.end, shift: r.shift });
+            cursor = r.end;
+          }
+          if (cursor < srcDur - 0.01) {
+            segments.push({ start: cursor, end: srcDur, shift: 0 });
+          }
+
+          for (const seg of segments) {
+            const segRate = Math.pow(2, (basePitch + seg.shift) / 12);
+            const segSource = offlineCtx.createBufferSource();
+            segSource.buffer = audioBuffer;
+            segSource.playbackRate.value = segRate;
+            segSource.connect(trackGain);
+
+            const when = clip.startTime + seg.start;
+            const offset = srcStart + seg.start;
+            const duration = (seg.end - seg.start) / segRate;
+            segSource.start(when, offset, duration);
+          }
+        }
+      }
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      const wavBlob = this._encodeWav(renderedBuffer, sampleRate);
+      this._downloadBlob(wavBlob, 'MyVocalBooth_export.wav');
+    } catch (err) {
+      alert('Export failed: ' + err.message);
+      console.error(err);
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.textContent = 'Export WAV';
+    }
+  }
+
+  _encodeWav(audioBuffer, sampleRate) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+    const dataSize = length * numChannels * bitsPerSample / 8;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    this._writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    this._writeString(view, 8, 'WAVE');
+    // fmt chunk
+    this._writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);        // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    // data chunk
+    this._writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write interleaved PCM samples
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(ch)[i]));
+        const int16 = sample < 0 ? sample * 32768 : sample * 32767;
+        view.setInt16(offset, int16, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  _writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
+
+  _downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   _movePlayhead(secs) {
     const el = document.getElementById('playhead');
