@@ -60,6 +60,7 @@ class App {
     document.getElementById('btn-undo').addEventListener('click', () => this._undo());
     document.getElementById('btn-redo').addEventListener('click', () => this._redo());
     document.getElementById('btn-export').addEventListener('click', () => this._exportWav());
+    document.getElementById('btn-add-track').addEventListener('click', () => this._addTrack());
 
     // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
@@ -132,6 +133,7 @@ class App {
 
       if (e.target.closest('.track-solo')) { this._toggleTrackSolo(trackId); this._renderAll(); return; }
       if (e.target.closest('.track-mute')) { this._toggleTrackMute(trackId); this._renderAll(); return; }
+      if (e.target.closest('.track-del-btn')) { this._removeTrack(trackId); return; }
       if (e.target.closest('.clip-delete')) {
         const clipEl = e.target.closest('.clip');
         if (clipEl) { this._deleteClip(trackId, Number(clipEl.dataset.clipIdx)); return; }
@@ -737,6 +739,33 @@ class App {
     this._saveProject();
   }
 
+  _addTrack() {
+    this._checkpoint();
+    const maxId = this._tracks.reduce((m, t) => Math.max(m, t.id), 0);
+    const count = this._tracks.length + 1;
+    this._tracks.push({
+      id: maxId + 1,
+      name: `Track ${count}`,
+      volume: 0.8,
+      pitchShift: 0,
+      mute: false,
+      solo: false,
+      clips: []
+    });
+    this._saveProject();
+    this._renderAll();
+  }
+
+  _removeTrack(trackId) {
+    if (this._tracks.length <= 1) return; // Keep at least one track
+    this._checkpoint();
+    this._tracks = this._tracks.filter((t) => t.id !== trackId);
+    if (this.selectedTrackId === trackId) this.selectedTrackId = this._tracks[0].id;
+    if (this.selectedClip?.trackId === trackId) this._deselectClip();
+    this._saveProject();
+    this._renderAll();
+  }
+
   /* ---- Persistence ---- */
 
   async _saveProject() {
@@ -820,6 +849,7 @@ class App {
         <div class="track-row${isSel ? ' selected' : ''}" data-track-id="${track.id}">
           <div class="track-header" title="Click to select track">
             <span class="track-name">${track.name}</span>
+            ${this._tracks.length > 1 ? `<button class="track-del-btn" data-track-del="${track.id}" title="Delete track">&times;</button>` : ''}
           </div>
           <div class="track-lane" style="width:${width}px">
             ${track.clips.map((clip, idx) => {

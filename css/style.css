@@ -361,6 +361,27 @@ body {
 .tl-hint {
   font-size: 10px;
   color: var(--text3);
+  margin-left: auto;
+}
+
+.btn-add-track {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+.btn-add-track:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(91, 156, 245, 0.06);
 }
 
 .tl-scroll-outer {
@@ -454,6 +475,33 @@ body {
   user-select: none;
 }
 .track-header:hover { background: var(--surface2); }
+
+.track-del-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  outline: none;
+  opacity: 0;
+  transition: all 0.1s;
+}
+.track-header:hover .track-del-btn { opacity: 1; }
+.track-del-btn:hover {
+  color: var(--record);
+  border-color: rgba(235, 77, 77, 0.3);
+  background: rgba(235, 77, 77, 0.08);
+}
 
 .track-name {
   font-size: 10px;
